@@ -92,28 +92,18 @@ class IndeedSpider(scrapy.Spider):
     def parse(self, response):
         """
         Parse the main search results page:
-        - Extract the job links
-        - Filter out unwanted URLs (such as ad redirects)
+        - Extract the job keys from the job title elements
+        - Build the correct job details URL
         - Yield requests for each valid job link
         """
         sel = Selector(response)
-        # Indeed often uses h2.jobTitle a for job links
-        job_links = sel.css("a.jcs-JobTitle::attr(href)").getall()
-
-        # No filtering here—keep them all
-        for link in job_links:
-            full_url = response.urljoin(link)
+        # Extract job keys from the element attribute (update the selector as needed)
+        job_keys = sel.css("a.jcs-JobTitle::attr(data-jk)").getall()
+        
+        for key in job_keys:
+            full_url = f"https://ca.indeed.com/viewjob?jk={key}&from=serp&vjs=3"
             yield scrapy.Request(full_url, callback=self.parse_job)
 
-        # Filter out URLs containing unwanted substrings (e.g., ad redirects)
-        #valid_links = [
-        #    link for link in job_links
-        #    if "/rc/clk" not in link and "pagead" not in link
-        #]
-
-        #for link in valid_links:
-        #    full_url = response.urljoin(link)
-        #    yield scrapy.Request(full_url, callback=self.parse_job)
 
 
     def parse_job(self, response):
