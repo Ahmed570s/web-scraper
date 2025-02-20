@@ -44,7 +44,7 @@ class IndeedSpider(scrapy.Spider):
     name = "indeed"
     allowed_domains = ["indeed.com", "ca.indeed.com"]
     start_urls = [
-        "https://ca.indeed.com/jobs?q=junior+developer&l=montr%C3%A9al%2C+qc"
+        "https://ca.indeed.com/jobs?q=front+end+developer&l=montr%C3%A9al%2C+qc&fromage=3&from=searchOnDesktopSerp&vjk=1778a3e399f7f618"
     ]
 
     def __init__(self, *args, **kwargs):
@@ -56,7 +56,7 @@ class IndeedSpider(scrapy.Spider):
         chrome_options.add_argument("--disable-blink-features=AutomationControlled")
         self.driver = webdriver.Chrome(options=chrome_options)
 
-        # Optional stealth mode
+        # Stealth mode
         stealth(
             self.driver,
             languages=["en-US", "en"],
@@ -112,6 +112,19 @@ class IndeedSpider(scrapy.Spider):
             # Build a fake Scrapy response from Selenium’s page_source
             fake_response = HtmlResponse(url=full_url, body=detail_html, encoding="utf-8")
             yield from self.parse_job(fake_response)
+        
+        # Handle pagination using Selenium:
+        next_page = sel.css('a[data-testid="pagination-page-next"]::attr(href)').get()
+        if next_page:
+            next_url = response.urljoin(next_page)
+            self.logger.info(f"Moving to next page: {next_url}")
+            self.driver.get(next_url)
+            time.sleep(random.uniform(3, 6))
+            self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight/2);")
+            time.sleep(random.uniform(2, 4))
+            next_html = self.driver.page_source
+            next_response = HtmlResponse(url=next_url, body=next_html, encoding="utf-8")
+            yield from self.parse(next_response)
 
     def parse_job(self, response):
         """
@@ -120,6 +133,10 @@ class IndeedSpider(scrapy.Spider):
         - Parse the JSON into a Python dict (if needed) before yielding.
         """
         job_html = response.body.decode("utf-8") if isinstance(response.body, bytes) else response.body
+
+        # Delay before making the API call (Token rate limit)
+        time.sleep(4)
+
         converted_str = html_to_json(job_html)
         try:
             converted_dict = json.loads(converted_str)
