@@ -4,12 +4,14 @@ import os
 import time
 import random
 
+from dotenv import load_dotenv
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium_stealth import stealth
 from scrapy.selector import Selector
 from scrapy.http import HtmlResponse
 
+load_dotenv()
 # Set your OpenAI API key
 openai.api_key = os.getenv("OpenAI_key")
 
