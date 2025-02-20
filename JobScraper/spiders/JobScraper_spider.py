@@ -3,6 +3,7 @@ import openai
 import os
 import time
 import random
+import json
 
 from dotenv import load_dotenv
 from selenium import webdriver
@@ -12,13 +13,18 @@ from scrapy.selector import Selector
 from scrapy.http import HtmlResponse
 
 load_dotenv()
-# Set your OpenAI API key
+# Set your OpenAI API key from the environment variable
 openai.api_key = os.getenv("OpenAI_key")
 
 def html_to_json(html_content):
     prompt = f"""
-Convert the following HTML job posting to structured JSON format with keys:
-job_title, company, location, salary, job_description, requirements.
+Convert the following HTML job posting to strictly valid JSON with exactly the following keys:
+"job_title", "company", "location", "salary", "job_description", "requirements".
+
+The output must be a single JSON object containing only these keys and their corresponding string values extracted from the HTML.
+Do not include any additional text, comments, or formatting—output only valid JSON.
+
+For the "job_description" and "requirements" fields, provide a concise summary that captures only the essential key information (do not output the full text).
 
 HTML:
 {html_content}
@@ -48,11 +54,9 @@ class IndeedSpider(scrapy.Spider):
         chrome_options.add_experimental_option("debuggerAddress", "127.0.0.1:9222")
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-
-        # Attach to the running Chrome
         self.driver = webdriver.Chrome(options=chrome_options)
 
-        # Optional stealth settings
+        # Optional stealth mode
         stealth(
             self.driver,
             languages=["en-US", "en"],
@@ -64,7 +68,7 @@ class IndeedSpider(scrapy.Spider):
         )
 
     def start_requests(self):
-        """Fetch the search results page using Selenium."""
+        """Use Selenium to fetch the search results page."""
         for url in self.start_urls:
             self.logger.info(f"Using Selenium to fetch: {url}")
             self.driver.get(url)
@@ -72,49 +76,57 @@ class IndeedSpider(scrapy.Spider):
             self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight/2);")
             time.sleep(random.uniform(2, 4))
             input("If a captcha appears, please solve it manually, then press Enter...")
-
             rendered_html = self.driver.page_source
+            # Build a fake Scrapy response so Scrapy can use it in parsing
             response = HtmlResponse(url=url, body=rendered_html, encoding='utf-8')
             yield from self.parse(response)
 
     def closed(self, reason):
+        """Quit Selenium when spider closes."""
         self.driver.quit()
 
     def parse(self, response):
         """
         Parse the main search results page:
         - Extract the unique job keys from the job title elements.
-        - Build the correct detail URL.
-        - Use Selenium to load each detail page and create a fake response.
+        - For each job key, build the detail URL.
+        - Use Selenium to load the detail page, build a fake response,
+          and then pass it to parse_job.
         """
         sel = Selector(response)
-        # Extract job keys from the data-jk attribute
+        # Extract job keys from the data-jk attribute in job title links
         job_keys = sel.css("a.jcs-JobTitle::attr(data-jk)").getall()
+        self.logger.info(f"Found {len(job_keys)} job keys.")
 
         for key in job_keys:
+            # Build the detail URL using the job key
             full_url = f"https://ca.indeed.com/viewjob?jk={key}&from=serp&vjs=3"
             self.logger.info(f"Loading job detail page: {full_url}")
-            # Use Selenium to load the detail page
+
+            # Use Selenium to load the job detail page
             self.driver.get(full_url)
             time.sleep(random.uniform(3, 6))
             self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight/2);")
             time.sleep(random.uniform(2, 4))
             detail_html = self.driver.page_source
-            # Build a fake Scrapy response using the Selenium page source
+            # Build a fake Scrapy response from Selenium’s page_source
             fake_response = HtmlResponse(url=full_url, body=detail_html, encoding="utf-8")
-            # Process the job detail page using parse_job
             yield from self.parse_job(fake_response)
 
     def parse_job(self, response):
         """
-        Process the job detail page (already loaded via Selenium):
-        - Convert the page HTML to JSON using the GPT prompt.
+        Process the job detail page (loaded via Selenium):
+        - Convert the HTML to JSON using the GPT prompt.
+        - Parse the JSON into a Python dict (if needed) before yielding.
         """
-        # Here, response.body is already the HTML from Selenium
         job_html = response.body.decode("utf-8") if isinstance(response.body, bytes) else response.body
-        converted_data = html_to_json(job_html)
-
+        converted_str = html_to_json(job_html)
+        try:
+            converted_dict = json.loads(converted_str)
+        except json.JSONDecodeError as e:
+            self.logger.error(f"JSON decoding error for {response.url}: {e}")
+            converted_dict = {}
         yield {
-            "converted_data": converted_data,
+            "converted_data": converted_dict,
             "source_url": response.url
         }
