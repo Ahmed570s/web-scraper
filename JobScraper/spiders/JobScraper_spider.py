@@ -29,16 +29,34 @@ For the "job_description" and "requirements" fields, provide a concise summary t
 HTML:
 {html_content}
 """
-    response = openai.ChatCompletion.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant that converts HTML into structured JSON."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.0,
-        max_tokens=500
-    )
-    return response.choices[0].message.content.strip()
+    max_retries = 5
+    attempt = 0
+    while attempt < max_retries:
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant that converts HTML into structured JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.0,
+                max_tokens=500
+            )
+            return response.choices[0].message.content.strip()
+        except openai.error.RateLimitError as e:
+            wait_time = 4  # Fixed delay of 4 seconds for rate limit errors
+            print(f"RateLimitError encountered. Waiting for {wait_time} seconds before retrying (attempt {attempt+1}/{max_retries})")
+            time.sleep(wait_time)
+            attempt += 1
+        except openai.error.APIError as e:
+            if hasattr(e, "http_status") and e.http_status == 502:
+                wait_time = 2 ** attempt  # Exponential backoff for 502 errors
+                print(f"502 error encountered. Retrying in {wait_time} seconds... (attempt {attempt+1}/{max_retries})")
+                time.sleep(wait_time)
+                attempt += 1
+            else:
+                raise
+    raise Exception("Max retries reached for OpenAI API.")
 
 class IndeedSpider(scrapy.Spider):
     name = "indeed"
