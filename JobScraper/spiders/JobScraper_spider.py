@@ -35,26 +35,22 @@ HTML:
 class IndeedSpider(scrapy.Spider):
     name = "indeed"
     allowed_domains = ["indeed.com", "ca.indeed.com"]
-    
     start_urls = [
-        # Example URL; adjust as needed
         "https://ca.indeed.com/jobs?q=junior+developer&l=montr%C3%A9al%2C+qc"
     ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        # 1) Connect to an existing Chrome instance:
+        # Connect to an existing Chrome instance (manually launched with --remote-debugging-port=9222)
         chrome_options = Options()
         chrome_options.add_experimental_option("debuggerAddress", "127.0.0.1:9222")
-        # 2) Some optional settings
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--disable-blink-features=AutomationControlled")
 
-        # 3) Attach to that running Chrome
+        # Attach to the running Chrome
         self.driver = webdriver.Chrome(options=chrome_options)
 
-        # 4) Optional stealth mode
+        # Optional stealth settings
         stealth(
             self.driver,
             languages=["en-US", "en"],
@@ -66,55 +62,54 @@ class IndeedSpider(scrapy.Spider):
         )
 
     def start_requests(self):
-        """Scrapy entry point: use Selenium to fetch each start_url."""
+        """Fetch the search results page using Selenium."""
         for url in self.start_urls:
             self.logger.info(f"Using Selenium to fetch: {url}")
             self.driver.get(url)
-
-            # Let the page load
             time.sleep(random.uniform(3, 6))
-
-            # Optionally scroll a bit
             self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight/2);")
             time.sleep(random.uniform(2, 4))
-
             input("If a captcha appears, please solve it manually, then press Enter...")
 
             rendered_html = self.driver.page_source
-            # Build a fake response so Scrapy can parse it
             response = HtmlResponse(url=url, body=rendered_html, encoding='utf-8')
             yield from self.parse(response)
 
     def closed(self, reason):
-        """Called automatically when spider finishes."""
         self.driver.quit()
 
     def parse(self, response):
         """
         Parse the main search results page:
-        - Extract the job keys from the job title elements
-        - Build the correct job details URL
-        - Yield requests for each valid job link
+        - Extract the unique job keys from the job title elements.
+        - Build the correct detail URL.
+        - Use Selenium to load each detail page and create a fake response.
         """
         sel = Selector(response)
-        # Extract job keys from the element attribute (update the selector as needed)
+        # Extract job keys from the data-jk attribute
         job_keys = sel.css("a.jcs-JobTitle::attr(data-jk)").getall()
-        
+
         for key in job_keys:
             full_url = f"https://ca.indeed.com/viewjob?jk={key}&from=serp&vjs=3"
-            yield scrapy.Request(full_url, callback=self.parse_job)
-
-
+            self.logger.info(f"Loading job detail page: {full_url}")
+            # Use Selenium to load the detail page
+            self.driver.get(full_url)
+            time.sleep(random.uniform(3, 6))
+            self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight/2);")
+            time.sleep(random.uniform(2, 4))
+            detail_html = self.driver.page_source
+            # Build a fake Scrapy response using the Selenium page source
+            fake_response = HtmlResponse(url=full_url, body=detail_html, encoding="utf-8")
+            # Process the job detail page using parse_job
+            yield from self.parse_job(fake_response)
 
     def parse_job(self, response):
-        """Open the job detail page in the existing Selenium browser, pass to GPT."""
-        self.driver.get(response.url)
-        time.sleep(random.uniform(3, 6))
-
-        self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight/2);")
-        time.sleep(random.uniform(2, 4))
-
-        job_html = self.driver.page_source
+        """
+        Process the job detail page (already loaded via Selenium):
+        - Convert the page HTML to JSON using the GPT prompt.
+        """
+        # Here, response.body is already the HTML from Selenium
+        job_html = response.body.decode("utf-8") if isinstance(response.body, bytes) else response.body
         converted_data = html_to_json(job_html)
 
         yield {
