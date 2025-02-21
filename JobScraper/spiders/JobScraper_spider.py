@@ -153,7 +153,7 @@ class IndeedSpider(scrapy.Spider):
         job_html = response.body.decode("utf-8") if isinstance(response.body, bytes) else response.body
 
         # Delay before making the API call (Token rate limit)
-        time.sleep(4)
+        # time.sleep(4)
 
         converted_str = html_to_json(job_html)
         try:
