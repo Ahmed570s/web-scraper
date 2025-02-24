@@ -37,13 +37,13 @@ This project is an experimental scraper for Indeed job postings. It uses Seleniu
    ```
 
 2. **Create and Activate a Virtual Environment**
-    On Windows:
+- On Windows:
 ```bash
     Copy
     python -m venv env
     env\Scripts\activate
-    On Linux/macOS:
 ```
+- On Linux/macOS:
 ```bash
     Copy
     python -m venv env
