@@ -37,36 +37,31 @@ This project is an experimental scraper for Indeed job postings. It uses Seleniu
    ```
 
 2. **Create and Activate a Virtual Environment**
-- On Windows:
+On Windows:
 ```bash
-    Copy
     python -m venv env
     env\Scripts\activate
 ```
-- On Linux/macOS:
+On Linux/macOS:
 ```bash
-    Copy
     python -m venv env
     source env/bin/activate
 ```
 
 3. **Install Dependencies**
 ```bash
-    Copy
     pip install -r requirements.txt
 ```
 
 4. **Configure Environment Variables**
     Create a file named `.env` in the project root with the following content:
 ```ini
-    Copy
     OPENAI_API_KEY=your_openai_api_key_here
 ```
 
 5. **Launch Chrome Manually with Remote Debugging**
     Close all Chrome instances, then run:
 ```bash
-Copy
 chrome.exe --remote-debugging-port=9222 --user-data-dir="C:\ChromeDebugProfile"
 ```
 (Ensure the path to `chrome.exe` is correct for your system.)
@@ -76,7 +71,6 @@ chrome.exe --remote-debugging-port=9222 --user-data-dir="C:\ChromeDebugProfile"
 From within the activated virtual environment (e.g., `(env) PS G:\Scrapers\web-scraper>`), run:
 
 ```bash
-Copy
 scrapy crawl indeed -o jobs.json
 ```
 During the run, if a CAPTCHA appears, the script will pause with a prompt so you can solve it manually. Once solved, press Enter to continue.
