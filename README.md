@@ -32,31 +32,31 @@ This project is an experimental scraper for Indeed job postings. It uses Seleniu
 
 1. **Clone the Repository:**
 ```bash
-    git clone https://github.com/yourusername/web-scraper.git
-    cd web-scraper
-   ```
+git clone https://github.com/yourusername/web-scraper.git
+cd web-scraper
+```
 
 2. **Create and Activate a Virtual Environment**
 - On Windows:
 ```bash
-    python -m venv env
-    env\Scripts\activate
+python -m venv env
+env\Scripts\activate
 ```
 - On Linux/macOS:
 ```bash
-    python -m venv env
-    source env/bin/activate
+python -m venv env
+source env/bin/activate
 ```
 
 3. **Install Dependencies**
 ```bash
-    pip install -r requirements.txt
+pip install -r requirements.txt
 ```
 
 4. **Configure Environment Variables**
     Create a file named `.env` in the project root with the following content:
 ```ini
-    OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_API_KEY=your_openai_api_key_here
 ```
 
 5. **Launch Chrome Manually with Remote Debugging**
@@ -64,7 +64,7 @@ This project is an experimental scraper for Indeed job postings. It uses Seleniu
 ```bash
 chrome.exe --remote-debugging-port=9222 --user-data-dir="C:\ChromeDebugProfile"
 ```
-(Ensure the path to `chrome.exe` is correct for your system.)
+(Ensure the path to `chrome.exe` is correct for your system. e.g., `"C:\Program Files\Google\Chrome\Application\Chrome.exe" --remote-debugging-port=9222 --user-data-dir="C:\ChromeDebugProfile"`)
 
 ## Running the Scraper
 
