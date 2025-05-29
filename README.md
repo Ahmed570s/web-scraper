@@ -32,7 +32,7 @@ This project is an experimental scraper for Indeed job postings. It uses Seleniu
 
 1. **Clone the Repository:**
 ```bash
-git clone https://github.com/yourusername/web-scraper.git
+git clone https://github.com/Ahmed570s/web-scraper.git
 cd web-scraper
 ```
 
